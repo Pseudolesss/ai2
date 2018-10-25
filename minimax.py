@@ -40,7 +40,9 @@ class PacmanAgent(Agent):
             sentinel = -math.inf
 
             for son in sons:
+                
                 val = self.minimax(son[0], 2, True, 0)
+
                 if val > sentinel:
                     sentinel = val
                     ret = son[1]
