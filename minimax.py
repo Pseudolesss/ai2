@@ -59,7 +59,6 @@ class PacmanAgent(Agent):
 
         key = self.generateKey(state, PacmanTurn)
 
-        i = 0
         if PacmanTurn:
             maxGameSum = -math.inf
             sons = state.generatePacmanSuccessors()
@@ -68,11 +67,7 @@ class PacmanAgent(Agent):
                 key_son = self.generateKey(son[0], not PacmanTurn)
 
                 if key_son in visited:  # If son state already visited
-                    i += 1
                     continue
-
-                if i == len(sons):
-                    return maxGameSum
                 
                 new_visited = visited.copy()
                 new_visited.add(key)
@@ -87,11 +82,7 @@ class PacmanAgent(Agent):
             for son in sons:
                 key_son = self.generateKey(son[0], not PacmanTurn)
                 if key_son in visited:  # If son state already visited
-                    i += 1
                     continue
-
-                if i == len(sons):
-                    return minGameSum
                 
                 new_visited = visited.copy()
                 new_visited.add(key)
