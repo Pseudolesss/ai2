@@ -13,7 +13,6 @@ class PacmanAgent(Agent):
         """
         self.args = args
         self.computed = dict()
-        self.visited = set()
 
     def get_action(self, state):
         """
@@ -45,31 +44,24 @@ class PacmanAgent(Agent):
 
         sentinel = -np.inf
 
-        self.visited.clear()
-        self.visited.add(key)
-
         for son in sons:
-            val = self.minimax(son[0], False)
+            val = self.minimax(son[0], False, {key})
             if val > sentinel:
                 sentinel = val
                 ret = son[1]
         
         return ret
 
-    def minimax(self, state, PacmanTurn):
+    def minimax(self, state, PacmanTurn, visited):
 
         if state.isWin():
-            key = self.generateKey(state, PacmanTurn)
-            self.visited.add(key)
             return state.getScore()
 
         if state.isLose():
-            key = self.generateKey(state, PacmanTurn)
-            self.visited.add(key)
             return -np.inf
 
         key = self.generateKey(state, PacmanTurn)
-        self.visited.add(key)
+        visited.add(key)
 
         if PacmanTurn:
             maxGameSum = -np.inf
@@ -78,13 +70,12 @@ class PacmanAgent(Agent):
             for son in sons:
                 key_son = self.generateKey(son[0], not PacmanTurn)
 
-                if key_son in self.visited:  # If son state already visited
+                if key_son in visited:  # If son state already visited
                     continue
                 
-                gameSum = self.minimax(son[0], not PacmanTurn)
+                gameSum = self.minimax(son[0], not PacmanTurn, visited.copy())
                 maxGameSum = max(maxGameSum, gameSum)
-            if maxGameSum == -np.inf:
-                return np.inf
+
             return maxGameSum
 
         else:
@@ -93,13 +84,13 @@ class PacmanAgent(Agent):
 
             for son in sons:
                 key_son = self.generateKey(son[0], not PacmanTurn)
-                if key_son in self.visited:  # If son state already visited
+                
+                if key_son in visited:  # If son state already visited
                     continue
 
-                gameSum = self.minimax(son[0], not PacmanTurn)
+                gameSum = self.minimax(son[0], not PacmanTurn, visited.copy())
                 minGameSum = min(minGameSum, gameSum)
-            if minGameSum == np.inf:
-                return -np.inf
+                
             return minGameSum
 
     def generateKey(self, state, PacmanTurn):
