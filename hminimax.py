@@ -1,6 +1,6 @@
 
 from pacman_module.game import Agent
-import math
+import numpy as np
 
 
 class PacmanAgent(Agent):
@@ -35,60 +35,109 @@ class PacmanAgent(Agent):
             return computed  # Return already computed result
         else:
 
-            sons = state.generatePacmanSuccessors()
-
-            sentinel = -math.inf
-
-            for son in sons:
-                
-                val = self.minimax(son[0], 2, True, 0)
-
-                if val > sentinel:
-                    sentinel = val
-                    ret = son[1]
-
+            ret = self.initHminimax(state, key)
             self.computed.update({key: ret})
             return ret  # Value associated to key (position, food)
 
-    def minimax(self, state, depth, PacmanTurn, contributions):
+
+    def initHminimax(self, state, key):
+        sons = state.generatePacmanSuccessors()
+
+        sentinel = -np.inf  
+        alpha = -np.inf
+        beta = np.inf
+
+        for son in sons:
+            val = self.hminimax(son[0], False, alpha, beta, 4, 0)
+            if val > sentinel:
+                sentinel = val
+                ret = son[1]
+        
+        return ret
+
+    def hminimax(self, state, PacmanTurn, alpha, beta, depth, contributions):
+        
         if depth == 0 or state.isWin() or state.isLose():
             return state.getScore() + contributions
 
         if PacmanTurn:
-            maxGameSum = -math.inf
+            maxGameSum = -np.inf
             sons = state.generatePacmanSuccessors()
 
             for son in sons:
-                contribution = - self.mindist(son[0].getPacmanPosition(),
-                                              son[0].getFood())
-                gameSum = self.minimax(son[0], depth - 1, False,
+                contribution = - self.PHeuristic(son[0])
+                contribution = 0
+                gameSum = self.hminimax(son[0], not PacmanTurn, alpha, beta, depth - 1,
                                        contributions + contribution)
                 maxGameSum = max((maxGameSum, gameSum))
+
+                alpha = max(alpha, gameSum)
+                if beta <= alpha:
+                    break
+
             return maxGameSum
 
         else:
-            minGameSum = math.inf
+            minGameSum = np.inf
             sons = state.generateGhostSuccessors(1)
 
             for son in sons:
-                gameSum = self.minimax(son[0], depth - 1, True, contributions)
+                contribution = 0
+                gameSum = self.hminimax(son[0],  not PacmanTurn, alpha, beta, depth - 1,
+                                       contributions + contribution)
                 minGameSum = min((minGameSum, gameSum))
+
+                beta = min(beta, gameSum)
+                if beta <= alpha:
+                    break
+
             return minGameSum
 
-    def mindist(self, pos, foods):
+    def generateKey(self, state, PacmanTurn):
+
+            pacmanPos = state.getPacmanPosition()
+            ghostPos = state.getGhostPosition(1)
+            foods = state.getFood()
+
+            ret = [PacmanTurn, pacmanPos[0], pacmanPos[1], int(ghostPos[0]), int(ghostPos[1])]
+
+            ret.extend(self.posFood(foods))
+
+            return tuple(ret)
+
+
+    def posFood(self, foods):
+
+        foods_pos = []
+        i = 0  # abscisses values
+        for rows in foods:
+            j = 0  # ordinates values
+            for elem in rows:
+                if elem:
+                    foods_pos.extend([i, j])
+                j += 1
+            i += 1
+
+        return foods_pos
+
+    def PHeuristic(self, state):
         """
         Given a Pacman position and a food matrix, returns the shortest
         distance to a dot.
         Arguments:
         ----------
         - `pos`: Pacman's position as a pair (x,y) : x,y >= 0
-        - `food`: a matrix of booleans indicating by a True value the presence
+        - `foods`: a matrix of booleans indicating by a True value the presence
         of a dot in the maze.
 
         Return:
         -------
         - A integer representing the longest distance to a dot
         """
+
+        pos = state.getPacmanPosition()
+        foods = state.getFood()
+
         foods_pos = []
         i = 0  # abscisses values
         for rows in foods:
@@ -106,3 +155,12 @@ class PacmanAgent(Agent):
             return 0
 
         return min(distances)
+
+    def GHeuristic(self, state) : 
+
+        contribution = list(map(lambda p, g: abs(p - g),
+                                   state.getPacmanPosition(),
+                                   state.getGhostPosition(1)))
+        contribution = sum(contribution)
+
+        return contribution
