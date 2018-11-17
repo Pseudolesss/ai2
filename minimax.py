@@ -34,18 +34,18 @@ class PacmanAgent(Agent):
 
         for son in sons:
             val = self.minimax(son[0], False,
-                                 {self.generateKey(state, True)})
+                               {self.generateKey(state, True)})
             if val > sentinel:
                 sentinel = val
                 ret = son[1]
-        
+
         return ret
 
     def minimax(self, state, PacmanTurn, visited):
         """
         Given a pacman game state, a player turn boolean and
-        a set of visited nodes, returns the value corresponding 
-        to the corresponding minimax tree.
+        a set of visited nodes, returns the value returned by 
+        the corresponding minimax tree.
 
         Arguments:
         ----------
@@ -57,17 +57,14 @@ class PacmanAgent(Agent):
 
         Return:
         -------
-        - A legal move as defined in `game.Directions`.
+        - The number value return by the search of the tree.
         """
 
-        if state.isWin():
-            return state.getScore() # 
-
-        if state.isLose():
-            return state.getScore()
+        if state.isWin() or state.isLose():
+            return state.getScore()  # Game over, return the result
 
         key = self.generateKey(state, PacmanTurn)
-        visited.add(key) # the context is being visited
+        visited.add(key)  # the context is being visited
 
         if PacmanTurn:
             maxGameSum = -np.inf
@@ -78,7 +75,7 @@ class PacmanAgent(Agent):
 
                 if key_son in visited:  # If son context already visited
                     continue
-                
+
                 gameSum = self.minimax(son[0], not PacmanTurn, visited.copy())
                 maxGameSum = max(maxGameSum, gameSum)
 
@@ -90,30 +87,55 @@ class PacmanAgent(Agent):
             sons = state.generateGhostSuccessors(1)
             for son in sons:
                 key_son = self.generateKey(son[0], not PacmanTurn)
-                
+
                 if key_son in visited:  # If son context already visited
                     continue
 
                 gameSum = self.minimax(son[0], not PacmanTurn, visited.copy())
                 minGameSum = min(minGameSum, gameSum)
-                
+
             return minGameSum
 
     def generateKey(self, state, PacmanTurn):
+        """
+        Given a game state and a player turn boolean, return a low computation
+        cost key for the given context.
+
+        Arguments:
+        ----------
+        - `state`: the current game state. 
+        - 'PacmanTurn': If True, Pacman is playing. Otherwise the Ghost 
+        is playing.
+
+        Return:
+        -------
+        - List of int value. (x1, y1, x2, y2, ...)
+        """
 
         pacmanPos = state.getPacmanPosition()
         ghostPos = state.getGhostPosition(1)
         foods = state.getFood()
 
-        ret = [PacmanTurn, pacmanPos[0], pacmanPos[1], int(ghostPos[0]), int(ghostPos[1])]
+        ret = [PacmanTurn, pacmanPos[0], pacmanPos[
+            1], int(ghostPos[0]), int(ghostPos[1])]
 
         ret.extend(self.posFood(foods))
 
         return tuple(ret)
 
-
     def posFood(self, foods):
+        """
+        Given a food matrix, return the list of all dot positions according to
+        the matrix.
 
+        Arguments:
+        ----------
+        - `food`: A food matrix object.
+
+        Return:
+        -------
+        - List of int value. (x1, y1, x2, y2, ...)
+        """
         foods_pos = []
         for i in range(foods.width):
             for j in range(foods.height):

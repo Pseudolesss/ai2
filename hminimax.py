@@ -17,36 +17,50 @@ class PacmanAgent(Agent):
     def get_action(self, state):
         """
         Given a pacman game state, returns a legal move.
+
         Arguments:
         ----------
-        - `state`: the current game state. See FAQ and class
-                   `pacman.GameState`.
+        - `state`: the current game state. 
+
         Return:
         -------
         - A legal move as defined in `game.Directions`.
-        """            
-        
-        ret = self.initHminimax(state)
-        
-        return ret
+        """
 
-    def initHminimax(self, state):
-
-        self.nbFood = state.getNumFood()
+        self.nbFood = state.getNumFood()  # Initial nb of dots
 
         sons = state.generatePacmanSuccessors()
 
         sentinel = -np.inf
         for son in sons:
-            val = self.hminimax(son[0], False, 3, 0)
+            val = self.hminimax(son[0], False, 3)
             if val > sentinel:
                 sentinel = val
                 ret = son[1]
 
         return ret
 
-    def hminimax(self, state, PacmanTurn, depth, contributions):
-        
+    def hminimax(self, state, PacmanTurn, depth):
+        """
+        Given a pacman game state, a player turn boolean and a depth value,
+        returns the value returned by the corresponding minimax tree of 
+        limited depth.
+
+        Arguments:
+        ----------
+        - `state`: the current game state. 
+        - 'PacmanTurn': If True, Pacman is playing. Otherwise
+        the Ghost is playing.
+        -'visited': set of context treated in the active branch of
+        the tree to avoid cycles. 
+        - 'alpha': the smallest leaf result encountered 
+        - 'beta': the highest leaf result encountered
+
+        Return:
+        -------
+        - The number value return by the search of the tree.
+        """
+
         if depth == 0 or state.isWin() or state.isLose():
             contributions = self.PHeuristic(state)
             return state.getScore() + contributions
@@ -56,10 +70,7 @@ class PacmanAgent(Agent):
             sons = state.generatePacmanSuccessors()
 
             for son in sons:
-                #contribution = self.PHeuristic(son[0], parentFood)
-                contribution = 0
-                gameSum = self.hminimax(son[0], not PacmanTurn, depth - 1,
-                                        contribution)
+                gameSum = self.hminimax(son[0], not PacmanTurn, depth - 1)
                 maxGameSum = max((maxGameSum, gameSum))
 
             return maxGameSum
@@ -69,26 +80,24 @@ class PacmanAgent(Agent):
             sons = state.generateGhostSuccessors(1)
 
             for son in sons:
-                contribution = 0
-                gameSum = self.hminimax(son[0], not PacmanTurn, depth - 1,
-                                        contribution)
+                gameSum = self.hminimax(son[0], not PacmanTurn, depth - 1)
                 minGameSum = min((minGameSum, gameSum))
 
             return minGameSum
 
-
     def PHeuristic(self, state):
         """
-        Given a Pacman position and a food matrix, returns the shortest
-        distance to a dot.
+        Given a game state, returns minus the shortest distance to a dot plus a
+        number proportional to the number of eaten dot since the beginning
+        of the search.
+
         Arguments:
         ----------
-        - `pos`: Pacman's position as a pair (x,y) : x,y >= 0
-        - `foods`: a matrix of booleans indicating by a True value the presence
-        of a dot in the maze.
+        - `state`: the current game state.
+
         Return:
         -------
-        - A integer representing the longest distance to a dot
+        - An integer.
         """
 
         dist = self.getMinDist(state)
@@ -97,9 +106,21 @@ class PacmanAgent(Agent):
         if self.nbFood != state.getNumFood():
             foodEaten = 100 * (self.nbFood - state.getNumFood())
 
-        return - dist + foodEaten 
+        return - dist + foodEaten
 
     def posFood(self, foods):
+        """
+        Given a food matrix, return the list of all dot positions according to
+        the matrix.
+
+        Arguments:
+        ----------
+        - `foods`: food matrix of the current game state.
+
+        Return:
+        -------
+        - List of tuples of 2 int value. (x, y)
+        """
 
         foods_pos = []
         for i in range(foods.width):
@@ -110,98 +131,113 @@ class PacmanAgent(Agent):
         return foods_pos
 
     def getAdj(self, state):
+        """
+        Given a game state, returns the adjacent matrix of every tiles of the
+        labyrinth according to Pacman legal moves.
 
-        
+        Arguments:
+        ----------
+        - `state`: A food matrix object.
+
+        Return:
+        -------
+        - List of List of (walls.width)*(walls.height) elements
+        """
+
         walls = state.getWalls()
 
         adj = list()
-        walls_height = walls.height
-        walls_width = walls.width
-        nb_elem = walls_height * walls_width
-        lsId = lambda i, j : i * walls_height + j
-        
+        nb_elem = walls.height * walls.width
+        lsId = lambda i, j: i * walls.height + j  # give back number of
+        # the tile located in (i,j)
 
-        buff = [np.inf] * nb_elem
+        buff = [np.inf] * nb_elem  # buffer list to fill adj with inf elements
         for i in range(nb_elem):
             adj.append(buff.copy())
 
-        for i in range(walls_width):
-            for j in range(walls_height):
+        for i in range(walls.width):
+            for j in range(walls.height):
                 if not walls[i][j]:
-                    
-                    if not walls[i - 1][j]: # left neighbour
-                        adj[lsId(i ,j)][lsId(i - 1, j)] = 1
 
-                    if not walls[i + 1][j]: # right neighbour
-                        adj[lsId(i ,j)][lsId(i + 1, j)] = 1
+                    if not walls[i - 1][j]:  # left neighbor
+                        adj[lsId(i, j)][lsId(i - 1, j)] = 1
 
-                    if not walls[i][j - 1]: # up neighbour
-                        adj[lsId(i ,j)][lsId(i , j - 1)] = 1
+                    if not walls[i + 1][j]:  # right neighbor
+                        adj[lsId(i, j)][lsId(i + 1, j)] = 1
 
-                    if not walls[i][j + 1]: # down neighbour
-                        adj[lsId(i ,j)][lsId(i, j + 1)] = 1
-                    
+                    if not walls[i][j - 1]:  # up neighbor
+                        adj[lsId(i, j)][lsId(i, j - 1)] = 1
+
+                    if not walls[i][j + 1]:  # down neighbor
+                        adj[lsId(i, j)][lsId(i, j + 1)] = 1
+
         return adj
 
-    def floydWarshall(self, state, graph): 
-        
-        # Number of vertices in the graph 
-        V = len(graph)
-
-        lsId = lambda i, j : i * state.getWalls().height + j
-
-        """ dist[][] will be the output matrix that will finally 
-            have the shortest distances between every pair of vertices """
-        """ initializing the solution matrix same as input graph matrix 
-        OR we can say that the initial values of shortest distances 
-        are based on shortest paths considering no 
-        intermediate vertices """
-        dist = list( map(lambda i : list( map(lambda j : j , i) ) , graph) )
-        
-        """ Add all vertices one by one to the set of intermediate 
-        vertices. 
-        ---> Before start of an iteration, we have shortest distances 
-        between all pairs of vertices such that the shortest 
-        distances consider only the vertices in the set 
-        {0, 1, 2, .. k-1} as intermediate vertices. 
-        ----> After the end of a iteration, vertex no. k is 
-        added to the set of intermediate vertices and the 
-        set becomes {0, 1, 2, .. k} 
+    def floydWarshall(self, adj):
         """
-        for k in range(V): 
+        Given a adjacent matrix, returns a distance matrix generated by the 
+        Floyd-Warshall algorithm.
 
-            # pick all vertices as source one by one 
-            for i in range(V): 
+        Arguments:
+        ----------
+        - `adj`: adjacent matrix of the current game state. 
 
-                # Pick all vertices as destination for the 
-                # above picked source 
-                for j in range(V): 
+        Return:
+        -------
+        - A distance matrix.
+        """
 
-                    # If vertex k is on the shortest path from 
-                    # i to j, then update the value of dist[i][j] 
-                    dist[i][j] = min(dist[i][j] , dist[i][k]+ dist[k][j]) 
+        # Number of vertices in the adjacent matrix
+        v = len(adj)
 
-        return dist
+        for k in range(v):
+
+            # pick all vertices as source one by one
+            for i in range(v):
+
+                # Pick all vertices as destination for the
+                # above picked source
+                for j in range(v):
+
+                    # If vertex k is on the shortest path from
+                    # i to j, then update the value of adj[i][j]
+                    adj[i][j] = min(adj[i][j], adj[i][k] + adj[k][j])
+
+        return adj
 
     def getMinDist(self, state):
+        """
+        Given a game state, returns the shortest distance between Pacman and
+        a dot.
+
+        Arguments:
+        ----------
+        - `state`: the current game state. 
+
+        Return:
+        -------
+        - The shortest distance between Pacman and a dot.
+        """
 
         walls = state.getWalls()
 
-        lsId = lambda i, j : i * walls.height + j
+        lsId = lambda i, j: i * walls.height + j
 
+        # See if distance matrix already computed for the given maze
         dist = self.distances.get(walls, False)
 
         if not dist:
-            dist = self.distances[walls] = self.floydWarshall(state, self.getAdj(state))
-        
+            dist = self.distances[walls] = self.floydWarshall(
+                self.getAdj(state))
 
         ret = list()
         pacmanPos = state.getPacmanPosition()
         foods = self.posFood(state.getFood())
 
         for food in foods:
-            ret.append(dist[lsId(pacmanPos[0], pacmanPos[1])] [lsId(food[0], food[1])])
-        
+            ret.append(dist[lsId(pacmanPos[0], pacmanPos[1])]
+                       [lsId(food[0], food[1])])
+
         if len(ret) == 0:
             return 0
         else:
