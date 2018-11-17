@@ -27,19 +27,7 @@ class PacmanAgent(Agent):
         -------
         - A legal move as defined in `game.Directions`.
         """
-        key = self.generateKey(state, True)  # Key for dict
-        computed = self.computed.get(key, False)
 
-        if computed:
-            return computed  # Return already computed result
-        else:
-
-            ret = self.initMinimax(state, key)
-
-            self.computed.update({key: ret})
-            return ret  # Value associated to key (position, food)
-
-    def initMinimax(self, state, key):
         sons = state.generatePacmanSuccessors()
 
         sentinel = -np.inf
@@ -47,7 +35,8 @@ class PacmanAgent(Agent):
         beta = np.inf
 
         for son in sons:
-            val = self.minimax(son[0], False, {key}, alpha, beta)
+            val = self.minimax(son[0], False,
+                                 {self.generateKey(state, True)}, alpha, beta)
             if val > sentinel:
                 sentinel = val
                 ret = son[1]
@@ -60,7 +49,7 @@ class PacmanAgent(Agent):
             return state.getScore()
 
         if state.isLose():
-            return -np.inf
+            return state.getScore()
 
         key = self.generateKey(state, PacmanTurn)
         visited.add(key)
@@ -119,13 +108,9 @@ class PacmanAgent(Agent):
     def posFood(self, foods):
 
         foods_pos = []
-        i = 0  # abscisses values
-        for rows in foods:
-            j = 0  # ordinates values
-            for elem in rows:
-                if elem:
+        for i in range(foods.width):
+            for j in range(foods.height):
+                if foods[i][j]:
                     foods_pos.extend([i, j])
-                j += 1
-            i += 1
 
         return foods_pos
