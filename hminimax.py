@@ -1,6 +1,6 @@
 
 from pacman_module.game import Agent
-import math
+import numpy as np
 
 
 class PacmanAgent(Agent):
@@ -11,7 +11,7 @@ class PacmanAgent(Agent):
         ----------
         - `args`: Namespace of arguments from command-line prompt.
         """
-        self.computed = dict()
+        self.distances = dict()
         self.args = args
 
     def get_action(self, state):
@@ -20,89 +20,225 @@ class PacmanAgent(Agent):
 
         Arguments:
         ----------
-        - `state`: the current game state. See FAQ and class
-                   `pacman.GameState`.
+        - `state`: the current game state. 
 
         Return:
         -------
         - A legal move as defined in `game.Directions`.
         """
-        key = (state.getPacmanPosition(), tuple(
-            state.getGhostPositions()), state.getFood())  # Key for dict
-        computed = self.computed.get(key, False)
 
-        if computed:
-            return computed  # Return already computed result
-        else:
+        self.nbFood = state.getNumFood()  # Initial nb of dots
 
-            sons = state.generatePacmanSuccessors()
+        sons = state.generatePacmanSuccessors()
 
-            sentinel = -math.inf
+        sentinel = -np.inf
+        for son in sons:
+            val = self.hminimax(son[0], False, 3)
+            if val > sentinel:
+                sentinel = val
+                ret = son[1]
 
-            for son in sons:
-                
-                val = self.minimax(son[0], 2, True, 0)
+        return ret
 
-                if val > sentinel:
-                    sentinel = val
-                    ret = son[1]
-
-            self.computed.update({key: ret})
-            return ret  # Value associated to key (position, food)
-
-    def minimax(self, state, depth, PacmanTurn, contributions):
-        if depth == 0 or state.isWin() or state.isLose():
-            return state.getScore() + contributions
-
-        if PacmanTurn:
-            maxGameSum = -math.inf
-            sons = state.generatePacmanSuccessors()
-
-            for son in sons:
-                contribution = - self.mindist(son[0].getPacmanPosition(),
-                                              son[0].getFood())
-                gameSum = self.minimax(son[0], depth - 1, False,
-                                       contributions + contribution)
-                maxGameSum = max((maxGameSum, gameSum))
-            return maxGameSum
-
-        else:
-            minGameSum = math.inf
-            sons = state.generateGhostSuccessors(1)
-
-            for son in sons:
-                gameSum = self.minimax(son[0], depth - 1, True, contributions)
-                minGameSum = min((minGameSum, gameSum))
-            return minGameSum
-
-    def mindist(self, pos, foods):
+    def hminimax(self, state, PacmanTurn, depth):
         """
-        Given a Pacman position and a food matrix, returns the shortest
-        distance to a dot.
+        Given a pacman game state, a player turn boolean and a depth value,
+        returns the value returned by the corresponding minimax tree of 
+        limited depth.
+
         Arguments:
         ----------
-        - `pos`: Pacman's position as a pair (x,y) : x,y >= 0
-        - `food`: a matrix of booleans indicating by a True value the presence
-        of a dot in the maze.
+        - `state`: the current game state. 
+        - 'PacmanTurn': If True, Pacman is playing. Otherwise
+        the Ghost is playing.
+        -'visited': set of context treated in the active branch of
+        the tree to avoid cycles. 
+        - 'alpha': the smallest leaf result encountered 
+        - 'beta': the highest leaf result encountered
 
         Return:
         -------
-        - A integer representing the longest distance to a dot
+        - The number value return by the search of the tree.
         """
+
+        if depth == 0 or state.isWin() or state.isLose():
+            contributions = self.PHeuristic(state)
+            return state.getScore() + contributions
+
+        if PacmanTurn:
+            maxGameSum = -np.inf
+            sons = state.generatePacmanSuccessors()
+
+            for son in sons:
+                gameSum = self.hminimax(son[0], not PacmanTurn, depth - 1)
+                maxGameSum = max((maxGameSum, gameSum))
+
+            return maxGameSum
+
+        else:
+            minGameSum = np.inf
+            sons = state.generateGhostSuccessors(1)
+
+            for son in sons:
+                gameSum = self.hminimax(son[0], not PacmanTurn, depth - 1)
+                minGameSum = min((minGameSum, gameSum))
+
+            return minGameSum
+
+    def PHeuristic(self, state):
+        """
+        Given a game state, returns minus the shortest distance to a dot plus a
+        number proportional to the number of eaten dot since the beginning
+        of the search.
+
+        Arguments:
+        ----------
+        - `state`: the current game state.
+
+        Return:
+        -------
+        - An integer.
+        """
+
+        dist = self.getMinDist(state)
+        foodEaten = 0
+
+        if self.nbFood != state.getNumFood():
+            foodEaten = 100 * (self.nbFood - state.getNumFood())
+
+        return - dist + foodEaten
+
+    def posFood(self, foods):
+        """
+        Given a food matrix, return the list of all dot positions according to
+        the matrix.
+
+        Arguments:
+        ----------
+        - `foods`: food matrix of the current game state.
+
+        Return:
+        -------
+        - List of tuples of 2 int value. (x, y)
+        """
+
         foods_pos = []
-        i = 0  # abscisses values
-        for rows in foods:
-            j = 0  # ordinates values
-            for elem in rows:
-                if elem:
+        for i in range(foods.width):
+            for j in range(foods.height):
+                if foods[i][j]:
                     foods_pos.append((i, j))
-                j += 1
-            i += 1
 
-        distances = list(map(lambda x: abs(pos[0] - x[0]) + abs(pos[1] - x[1]),
-                             foods_pos))
+        return foods_pos
 
-        if len(distances) == 0:
+    def getAdj(self, state):
+        """
+        Given a game state, returns the adjacent matrix of every tiles of the
+        labyrinth according to Pacman legal moves.
+
+        Arguments:
+        ----------
+        - `state`: A food matrix object.
+
+        Return:
+        -------
+        - List of List of (walls.width)*(walls.height) elements
+        """
+
+        walls = state.getWalls()
+
+        adj = list()
+        nb_elem = walls.height * walls.width
+        lsId = lambda i, j: i * walls.height + j  # give back number of
+        # the tile located in (i,j)
+
+        buff = [np.inf] * nb_elem  # buffer list to fill adj with inf elements
+        for i in range(nb_elem):
+            adj.append(buff.copy())
+
+        for i in range(walls.width):
+            for j in range(walls.height):
+                if not walls[i][j]:
+
+                    if not walls[i - 1][j]:  # left neighbor
+                        adj[lsId(i, j)][lsId(i - 1, j)] = 1
+
+                    if not walls[i + 1][j]:  # right neighbor
+                        adj[lsId(i, j)][lsId(i + 1, j)] = 1
+
+                    if not walls[i][j - 1]:  # up neighbor
+                        adj[lsId(i, j)][lsId(i, j - 1)] = 1
+
+                    if not walls[i][j + 1]:  # down neighbor
+                        adj[lsId(i, j)][lsId(i, j + 1)] = 1
+
+        return adj
+
+    def floydWarshall(self, adj):
+        """
+        Given a adjacent matrix, returns a distance matrix generated by the 
+        Floyd-Warshall algorithm.
+
+        Arguments:
+        ----------
+        - `adj`: adjacent matrix of the current game state. 
+
+        Return:
+        -------
+        - A distance matrix.
+        """
+
+        # Number of vertices in the adjacent matrix
+        v = len(adj)
+
+        for k in range(v):
+
+            # pick all vertices as source one by one
+            for i in range(v):
+
+                # Pick all vertices as destination for the
+                # above picked source
+                for j in range(v):
+
+                    # If vertex k is on the shortest path from
+                    # i to j, then update the value of adj[i][j]
+                    adj[i][j] = min(adj[i][j], adj[i][k] + adj[k][j])
+
+        return adj
+
+    def getMinDist(self, state):
+        """
+        Given a game state, returns the shortest distance between Pacman and
+        a dot.
+
+        Arguments:
+        ----------
+        - `state`: the current game state. 
+
+        Return:
+        -------
+        - The shortest distance between Pacman and a dot.
+        """
+
+        walls = state.getWalls()
+
+        lsId = lambda i, j: i * walls.height + j
+
+        # See if distance matrix already computed for the given maze
+        dist = self.distances.get(walls, False)
+
+        if not dist:
+            dist = self.distances[walls] = self.floydWarshall(
+                self.getAdj(state))
+
+        ret = list()
+        pacmanPos = state.getPacmanPosition()
+        foods = self.posFood(state.getFood())
+
+        for food in foods:
+            ret.append(dist[lsId(pacmanPos[0], pacmanPos[1])]
+                       [lsId(food[0], food[1])])
+
+        if len(ret) == 0:
             return 0
-
-        return min(distances)
+        else:
+            return min(ret)
