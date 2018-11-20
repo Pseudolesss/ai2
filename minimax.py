@@ -79,6 +79,10 @@ class PacmanAgent(Agent):
                 gameSum = self.minimax(son[0], not PacmanTurn, visited.copy())
                 maxGameSum = max(maxGameSum, gameSum)
 
+             # Ignore the node if it has no sons and it is not final
+            if maxGameSum == -np.inf:
+                return np.inf
+
             return maxGameSum
 
         else:
@@ -93,6 +97,10 @@ class PacmanAgent(Agent):
 
                 gameSum = self.minimax(son[0], not PacmanTurn, visited.copy())
                 minGameSum = min(minGameSum, gameSum)
+
+            # Ignore the node if it has no sons and it is not final
+            if minGameSum == np.inf:
+                return -np.inf
 
             return minGameSum
 

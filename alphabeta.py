@@ -89,6 +89,10 @@ class PacmanAgent(Agent):
                 if alpha >= beta:
                     break
 
+             # Ignore the node if it has no sons and it is not final
+            if maxGameSum == -np.inf:
+                return np.inf
+
             return maxGameSum
 
         else:
@@ -108,6 +112,10 @@ class PacmanAgent(Agent):
                 beta = min(beta, gameSum)
                 if beta <= alpha:
                     break
+
+            # Ignore the node if it has no sons and it is not final
+            if minGameSum == np.inf:
+                return -np.inf
 
             return minGameSum
 
